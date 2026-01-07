@@ -120,7 +120,6 @@ while message_queue:
     st.session_state.last_message = payload
 
     if st.session_state.session_active:
-        # Menyesuaikan dengan JSON baru dari ESP32
         record = {
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "session_id": st.session_state.session_id,
@@ -141,7 +140,7 @@ while message_queue:
 # --- VISUALISASI ---
 current_data = st.session_state.last_message if st.session_state.last_message else {}
 
-# Baris 1: Sensor Lokal (Suhu, Hum, CO, PM2.5)
+# 1. METRICS (ANGKA BESAR)
 st.subheader("🏠 Sensor Lokal")
 row1_col1, row1_col2, row1_col3, row1_col4 = st.columns(4)
 with row1_col1:
@@ -153,7 +152,6 @@ with row1_col3:
 with row1_col4:
     st.metric("PM 2.5 (µg/m³)", value=current_data.get("pm25", "-"))
 
-# Baris 2: Data API (NO2, PM10, SO2, O3)
 st.subheader("☁️ Data API (WAQI)")
 row2_col1, row2_col2, row2_col3, row2_col4 = st.columns(4)
 with row2_col1:
@@ -165,6 +163,37 @@ with row2_col3:
 with row2_col4:
     st.metric("O₃ (µg/m³)", value=current_data.get("o3", "-"))
 
+# 2. GRAFIK (LINE CHARTS)
+st.markdown("---")
+st.subheader("📈 Grafik Tren Real-time")
+
+if st.session_state.data_buffer:
+    # Buat DataFrame dari buffer
+    df_chart = pd.DataFrame(st.session_state.data_buffer)
+    # Konversi kolom timestamp ke datetime object agar sumbu X benar
+    df_chart['timestamp'] = pd.to_datetime(df_chart['timestamp'])
+    # Set timestamp sebagai index untuk plotting
+    df_chart = df_chart.set_index('timestamp')
+
+    # Gunakan Tabs agar grafik tidak menumpuk memanjang ke bawah
+    tab1, tab2, tab3 = st.tabs(["🌡️ Lingkungan Fisik", "🌫️ Partikel Debu", "☠️ Gas Polutan"])
+
+    with tab1:
+        st.caption("Grafik Suhu dan Kelembapan")
+        st.line_chart(df_chart[['suhu', 'kelembaban']])
+
+    with tab2:
+        st.caption("Grafik Partikulat (PM2.5 Lokal & PM10 API)")
+        st.line_chart(df_chart[['pm25_ug', 'pm10_ug']])
+
+    with tab3:
+        st.caption("Grafik Gas (CO, NO2, SO2, O3)")
+        st.line_chart(df_chart[['co_mg', 'no2_ug', 'so2_ug', 'o3_ug']])
+
+else:
+    st.info("Menunggu data untuk menampilkan grafik...")
+
+# 3. TABEL DATA
 st.markdown("### 📊 Live Data Buffer")
 
 if st.session_state.data_buffer:
